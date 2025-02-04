@@ -33,6 +33,48 @@ template VerifyIPFSPrefix() {
     hash[1] === 109; // 'm'
 }
 
+// Verify product data structure and format
+template VerifyProductData() {
+    // Product inputs
+    signal input name[32];          // Product name hash
+    signal input description[32];    // Description hash
+    signal input timestamp;         // Launch timestamp
+    signal input price;            // Product price in wei
+    signal input category;         // Product category
+    
+    // Metadata
+    signal input ipfsHash[32];     // IPFS CID of complete product data
+    signal input altLayerAddress;  // AltLayer company address
+    
+    // Validation outputs
+    signal output dataHash;        // Combined hash of all product data
+    signal output valid;           // Validation result
+
+    // Verify timestamp is current
+    component timeCheck = LessThan(64);
+    timeCheck.in[0] <== timestamp;
+    timeCheck.in[1] <== timestamp + 3600; // Must be within 1 hour of submission
+
+    // Price range check (0.01 ETH to 1000 ETH)
+    component priceCheck = CheckRange(160);
+    priceCheck.in <== price;
+    priceCheck.min <== 10000000000000000; // 0.01 ETH
+    priceCheck.max <== 1000000000000000000000; // 1000 ETH
+
+    // Hash all product data
+    component hasher = Poseidon(7);
+    hasher.inputs[0] <== name[0];
+    hasher.inputs[1] <== description[0];
+    hasher.inputs[2] <== timestamp;
+    hasher.inputs[3] <== price;
+    hasher.inputs[4] <== category;
+    hasher.inputs[5] <== ipfsHash[0];
+    hasher.inputs[6] <== altLayerAddress;
+
+    dataHash <== hasher.out;
+    valid <== AND(timeCheck.out, priceCheck.out);
+}
+
 // Main product verification circuit
 template ProductLaunchVerifier() {
     // Private inputs
@@ -66,6 +108,15 @@ template ProductLaunchVerifier() {
     component ipfsCheck = VerifyIPFSPrefix();
     ipfsCheck.hash <== ipfsHash;
 
+    component productVerifier = VerifyProductData();
+    // Connect inputs
+    productVerifier.name <== productName;
+    productVerifier.description <== description;
+    productVerifier.timestamp <== validatorSecret; // Using this as timestamp for demo
+    productVerifier.price <== 1000000000000000000; // 1 ETH default
+    productVerifier.category <== category;
+    productVerifier.ipfsHash <== ipfsHash;
+    productVerifier.altLayerAddress <== validatorHash; // Using this as address for demo
 
     // 5️⃣ Compute Validation Hash (Hash of All Inputs)
     component hasher = Poseidon(5);
