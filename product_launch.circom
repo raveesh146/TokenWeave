@@ -9,6 +9,7 @@ template CheckRange(bits) {
     signal input in;
     signal input min;
     signal input max;
+    signal output out;
     
     component n2b = Num2Bits(bits);
     n2b.in <== in;
@@ -16,12 +17,15 @@ template CheckRange(bits) {
     component gtMin = GreaterThan(bits);
     gtMin.in[0] <== in;
     gtMin.in[1] <== min;
-    gtMin.out === 1;
     
     component ltMax = LessThan(bits);
     ltMax.in[0] <== in;
     ltMax.in[1] <== max;
-    ltMax.out === 1;
+
+    component andGate = AND();
+    andGate.a <== gtMin.out;
+    andGate.b <== ltMax.out;
+    out <== andGate.out;
 }
 
 // Verify IPFS hash prefix (Qm)
@@ -72,7 +76,10 @@ template VerifyProductData() {
     hasher.inputs[6] <== altLayerAddress;
 
     dataHash <== hasher.out;
-    valid <== AND(timeCheck.out, priceCheck.out);
+    component andGate = AND();
+    andGate.a <== timeCheck.out;
+    andGate.b <== priceCheck.out;
+    valid <== andGate.out;
 }
 
 // Main product verification circuit
