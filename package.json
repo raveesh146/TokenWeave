@@ -1,0 +1,24 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "src/server.js",
+  "dependencies": {
+    "@coinbase/agentkit": "latest",
+    "@coinbase/agentkit-langchain": "latest",
+    "@langchain/openai": "latest",
+    "@langchain/core": "latest",
+    "@langchain/langgraph": "latest",
+    "@pinata/sdk": "^2.1.0",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "twitter-api-v2": "^1.14.2",
+    "viem": "latest"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+} 

@@ -1,0 +1,158 @@
+
+Technical Specifications:
+Use Node.js and Express for the backend framework.
+Integrate CDP's AgentKit and SDK for blockchain interactions.
+Utilize LangChain for handling natural language processing tasks.
+Ensure proper error handling and logging throughout the application.
+Implement security measures for API keys and sensitive data.
+Deliverables:
+A fully functional backend application that meets the above requirements.
+Documentation outlining the API endpoints, data structures, and usage instructions.
+
+
+
+
+
+
+#AgentKit
+npm install @coinbase/agentkit @coinbase/agentkit-langchain @langchain/openai @langchain/core @langchain/langgraph viem
+
+CDP_API_KEY_NAME=your-cdp-key-name
+CDP_API_KEY_PRIVATE_KEY=your-cdp-private-key
+OPENAI_API_KEY=your-openai-key
+NETWORK_ID=base-sepolia
+
+import {
+  AgentKit,
+  CdpWalletProvider,
+  wethActionProvider,
+  walletActionProvider,
+  erc20ActionProvider,
+  cdpApiActionProvider,
+  cdpWalletActionProvider,
+  pythActionProvider,
+} from "@coinbase/agentkit";
+
+import { getLangChainTools } from "@coinbase/agentkit-langchain";
+import { HumanMessage } from "@langchain/core/messages";
+import { MemorySaver } from "@langchain/langgraph";
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { ChatOpenAI } from "@langchain/openai";
+import * as dotenv from "dotenv";
+import * as fs from "fs";
+import * as readline from "readline";
+
+dotenv.config();
+
+
+/**
+ * Initialize the agent with CDP Agentkit
+ *
+ * @returns Agent executor and config
+ */
+async function initializeAgent() {
+  try {
+    // Initialize LLM
+    const llm = new ChatOpenAI({
+      model: "gpt-4o-mini",
+    });
+
+    let walletDataStr: string | null = null;
+
+    // Read existing wallet data if available
+    if (fs.existsSync(WALLET_DATA_FILE)) {
+      try {
+        walletDataStr = fs.readFileSync(WALLET_DATA_FILE, "utf8");
+      } catch (error) {
+        console.error("Error reading wallet data:", error);
+        // Continue without wallet data
+      }
+    }
+
+    // Configure CDP Wallet Provider
+    const config = {
+      apiKeyName: process.env.CDP_API_KEY_NAME,
+      apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      cdpWalletData: walletDataStr || undefined,
+      networkId: process.env.NETWORK_ID || "base-sepolia",
+    };
+
+    const walletProvider = await CdpWalletProvider.configureWithWallet(config);
+
+    // Initialize AgentKit
+    const agentkit = await AgentKit.from({
+      walletProvider,
+      actionProviders: [
+        wethActionProvider(),
+        pythActionProvider(),
+        walletActionProvider(),
+        erc20ActionProvider(),
+        cdpApiActionProvider({
+          apiKeyName: process.env.CDP_API_KEY_NAME,
+          apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+        }),
+        cdpWalletActionProvider({
+          apiKeyName: process.env.CDP_API_KEY_NAME,
+          apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+        }),
+      ],
+    });
+
+    const tools = await getLangChainTools(agentkit);
+
+    // Store buffered conversation history in memory
+    const memory = new MemorySaver();
+    const agentConfig = { configurable: { thread_id: "CDP AgentKit Chatbot Example!" } };
+
+    // Create React Agent using the LLM and CDP AgentKit tools
+    const agent = createReactAgent({
+      llm,
+      tools,
+      checkpointSaver: memory,
+      messageModifier: `
+        You are a helpful agent that can interact onchain using the Coinbase Developer Platform AgentKit. You are 
+        empowered to interact onchain using your tools. If you ever need funds, you can request them from the 
+        faucet if you are on network ID 'base-sepolia'. If not, you can provide your wallet details and request 
+        funds from the user. Before executing your first action, get the wallet details to see what network 
+        you're on. If there is a 5XX (internal) HTTP error code, ask the user to try again later. If someone 
+        asks you to do something you can't do with your currently available tools, you must say so, and 
+        encourage them to implement it themselves using the CDP SDK + Agentkit, recommend they go to 
+        docs.cdp.coinbase.com for more information. Be concise and helpful with your responses. Refrain from 
+        restating your tools' descriptions unless it is explicitly requested.
+        `,
+    });
+
+    // Save wallet data
+    const exportedWallet = await walletProvider.exportWallet();
+    fs.writeFileSync(WALLET_DATA_FILE, JSON.stringify(exportedWallet));
+
+    return { agent, config: agentConfig };
+  } catch (error) {
+    console.error("Failed to initialize agent:", error);
+    throw error; // Re-throw to be handled by caller
+  }
+}
+
+
+
+# langchain
+d Node.js will help you change the model for your LangChain agent.
+
+For the Node.js version, you can change the model similarly.
+
+For any model that can be accessed through the OpenAI standard, you can change the BaseURL as specified by your model provider's documentation. You can also specify additional configuration options such as maxTokens, temperature, and topP. Here are some examples:
+
+    import { ChatOpenAI } from "@langchain/openai";
+    const llm = new ChatOpenAI({
+      model: "function_calling_default",
+      apiKey: process.env.VENICE_API_KEY, // you can input your API key in plaintext, but this is not recommended 
+      configuration: {
+        baseURL: "https://api.venice.ai/api/v1",
+      },
+    });
+
+Prompting Guide
+The prompts you use for your agent can siginifcantly impact its personality and performance. Here are some tips to help you get started:
+
+Agent State Modifier: The agent state modifer is the first thing the agent sees. It is used to set the agent's initial state and can be used to set the agent's personality. If there are specific instructions for the agent, they should be included here. However, do not treat it as as a place for guardrails, as a well-written prompt can get around text-based instructions.
+Action Prompt: Every action has an associated prompt that gives the agent context on how to use the action. If there are specific things an agent should know about the parameters, how to ask the user for clarification, or assumptions to make in default cases when the user does not mention a specific parameter, this prompt is a great place to include them.
