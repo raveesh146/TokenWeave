@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 
 import "../node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "../node_modules/@openzeppelin/contracts/access/Ownable.sol";
-import "./IProductVerifier.sol";
+import "./interfaces/IProductVerifier.sol";
 
 contract ProductNFT is ERC721, Ownable {
     IProductVerifier public verifier;

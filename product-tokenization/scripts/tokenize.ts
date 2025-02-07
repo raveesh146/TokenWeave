@@ -14,7 +14,7 @@ interface ProductData {
     companyAddress: string;
 }
 
-const LAGRANGE_ENDPOINT = process.env.LAGRANGE_ENDPOINT
+const LAGRANGE_ENDPOINT = process.env.LAGRANGE_ENDPOINT || "https://api.lagrange.dev"
 const LAGRANGE_API_KEY = process.env.LAGRANGE_API_KEY
 
 async function uploadToIPFS(data: any) {
@@ -42,7 +42,20 @@ async function generateProof(input: any) {
         })
     })
     
-    return await response.json()
+    const result = await response.json()
+    if (!result.proof) {
+        throw new Error('Proof generation failed: ' + result.error)
+    }
+    
+    // Format proof for contract
+    return {
+        proof: [
+            result.proof.pi_a,      // _pA
+            result.proof.pi_b,      // _pB
+            result.proof.pi_c       // _pC
+        ],
+        publicSignals: result.publicSignals
+    }
 }
 
 async function tokenizeProduct(productData: ProductData) {
