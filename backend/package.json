@@ -1,28 +1,35 @@
 {
-  "name": "backend",
+  "name": "memecoin-generator",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Meme Coin Generator using CDP AgentKit",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test:twitter": "ts-node src/tests/twitter.service.test.ts",
+    "test:pinata": "ts-node src/tests/pinata.service.test.ts",
+    "test:agent": "ts-node src/tests/agentkit.test.ts",
+    "test:all": "ts-node src/tests/run-tests.ts"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
     "@coinbase/agentkit": "^0.1.1",
     "@coinbase/agentkit-langchain": "^0.1.0",
-    "@langchain/core": "^0.3.37",
-    "@langchain/langgraph": "^0.2.44",
+    "@coinbase/coinbase-sdk": "latest",
+    "@langchain/core": "^0.3.38",
+    "@langchain/langgraph": "^0.2.45",
     "@langchain/openai": "^0.4.2",
-    "@pinata/sdk": "^2.1.0",
+    "axios": "^1.6.2",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "express-rate-limit": "^7.5.0",
-    "nodemon": "^3.1.9",
-    "twitter-api-v2": "^1.19.1",
-    "viem": "^2.22.21"
+    "express-rate-limit": "^6.11.2",
+    "node-cache": "^5.1.2",
+    "twitter-api-v2": "^1.15.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.17",
+    "@types/node": "^18.15.11",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.4"
   }
 }
