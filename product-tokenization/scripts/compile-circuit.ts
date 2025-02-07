@@ -1,22 +1,44 @@
 // scripts/compile-circuit.ts
-import { exec } from 'child_process'
-import { promisify } from 'util'
-import fs from 'fs'
-
-const execAsync = promisify(exec)
+import { execSync } from 'child_process';
+import * as fs from 'fs';
+import path from 'path';
 
 async function main() {
-    // 1. Compile circuit
-    await execAsync('circom circuits/product_launch.circom --r1cs --wasm --sym')
+    const circuitName = "product_launch";
     
-    // 2. Generate zkey
-    await execAsync('snarkjs groth16 setup product_launch.r1cs pot12_final.ptau circuit_0000.zkey')
+    // Create directories
+    execSync('mkdir -p build/circuits');
     
-    // 3. Export verification key
-    await execAsync('snarkjs zkey export verificationkey circuit_0000.zkey verification_key.json')
+    console.log("1. Compiling circuit...");
+    execSync(`circom circuits/${circuitName}.circom --r1cs --wasm --sym -o build/circuits`);
     
-    // 4. Generate Solidity verifier
-    await execAsync('snarkjs zkey export solidityverifier circuit_0000.zkey contracts/ProductVerifier.sol')
+    // Change to build/circuits directory
+    process.chdir('build/circuits');
+    
+    console.log("2. Downloading Powers of Tau file...");
+    if (!fs.existsSync("powersOfTau28_hez_final_12.ptau")) {
+        execSync('curl -o powersOfTau28_hez_final_12.ptau https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_12.ptau');
+    }
+    
+    console.log("3. Generating zkey files...");
+    execSync(`snarkjs groth16 setup ${circuitName}.r1cs powersOfTau28_hez_final_12.ptau circuit_0000.zkey`);
+    
+    console.log("4. Contributing to ceremony...");
+    execSync('snarkjs zkey contribute circuit_0000.zkey circuit_final.zkey -e="random text"');
+    
+    console.log("5. Exporting verification key...");
+    execSync('snarkjs zkey export verificationkey circuit_final.zkey verification_key.json');
+    
+    console.log("6. Generating Solidity verifier...");
+    // Go back to project root before generating the verifier
+    process.chdir('../..');
+    execSync('mkdir -p contracts');
+    execSync('snarkjs zkey export solidityverifier build/circuits/circuit_final.zkey contracts/ProductVerifier.sol');
+    
+    console.log("Circuit compilation completed!");
 }
 
-main().catch(console.error)
+main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+});

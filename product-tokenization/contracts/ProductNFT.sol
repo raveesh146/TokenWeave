@@ -1,14 +1,28 @@
+// contracts/ProductNFT.sol
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
 import "../node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "./IProductVerifier.sol"; // Generated from circom circuit
+import "../node_modules/@openzeppelin/contracts/access/Ownable.sol";
+import "./IProductVerifier.sol";
 
-contract ProductNFT is ERC721 {
+contract ProductNFT is ERC721, Ownable {
     IProductVerifier public verifier;
     mapping(uint256 => bool) public nullifierUsed;
+    mapping(uint256 => string) public tokenMetadata;
+    
+    event ProductTokenized(
+        uint256 indexed tokenId,
+        string ipfsCid,
+        uint256 validationHash,
+        address indexed minter
+    );
     
     constructor(address _verifier) ERC721("Product Token", "PROD") {
+        verifier = IProductVerifier(_verifier);
+    }
+    
+    function setVerifier(address _verifier) external onlyOwner {
         verifier = IProductVerifier(_verifier);
     }
 
@@ -18,28 +32,27 @@ contract ProductNFT is ERC721 {
         string calldata ipfsCid,
         address recipient
     ) external {
-        // Public signals: [validationHash, mintAmount, nullifier]
         require(!nullifierUsed[publicSignals[2]], "Proof already used");
         
-        // Verify the proof
         require(
-            verifier.verifyProof(proof, publicSignals),
+            verifier.verifyProof(
+                proof,
+                [publicSignals[0], publicSignals[1], publicSignals[2]]
+            ),
             "Invalid proof"
         );
 
-        // Mark nullifier as used
         nullifierUsed[publicSignals[2]] = true;
-
-        // Mint NFT
+        
         uint256 tokenId = uint256(keccak256(abi.encodePacked(publicSignals[0])));
         _mint(recipient, tokenId);
+        tokenMetadata[tokenId] = ipfsCid;
         
-        emit ProductTokenized(tokenId, ipfsCid, publicSignals[0]);
+        emit ProductTokenized(tokenId, ipfsCid, publicSignals[0], recipient);
     }
 
-    event ProductTokenized(
-        uint256 indexed tokenId,
-        string ipfsCid,
-        uint256 validationHash
-    );
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(_exists(tokenId), "Token does not exist");
+        return tokenMetadata[tokenId];
+    }
 }

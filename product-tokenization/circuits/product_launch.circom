@@ -1,8 +1,8 @@
 pragma circom 2.1.4;
-include "node_modules/circomlib/circuits/poseidon.circom";
-include "node_modules/circomlib/circuits/comparators.circom";
-include "node_modules/circomlib/circuits/bitify.circom";
-include "node_modules/circomlib/circuits/gates.circom";
+include "../node_modules/circomlib/circuits/poseidon.circom";
+include "../node_modules/circomlib/circuits/comparators.circom";
+include "../node_modules/circomlib/circuits/bitify.circom";
+include "../node_modules/circomlib/circuits/gates.circom";
 
 // Check if value is within range
 template CheckRange(bits) {
