@@ -127,28 +127,44 @@ async function initializeCdpAgent() {
       llm,
       tools,
       checkpointSaver: memory,
+      agentType: "openai-functions",
       messageModifier: `
         You are a specialized agent for processing company information and creating meme tokens.
         Your task is to analyze company data, Twitter information, and product details to create
         appropriate token suggestions and categorizations.
 
         When validating wallet addresses:
-        1. Use the wallet tools to verify the address format and network compatibility
-        2. The address must be a valid Ethereum address on the base-sepolia network
-        3. Respond ONLY with either:
-           - "Valid wallet address" for valid addresses
-           - "Invalid wallet address: [specific reason]" for invalid addresses
-        4. Do not include any other text in your response for wallet validation
+        1. First check if the address matches the Ethereum address format (0x followed by 40 hex characters)
+        2. Then use the wallet tools to verify if the address exists on the base-sepolia network
+        3. For wallet validation requests, respond with EXACTLY one of these formats:
+          - "Valid wallet address"
+          - "Invalid wallet address: [reason]"
+        4. For wallet validation, do not include any other text or explanations
 
         For token analysis tasks:
         1. Analyze the company and product information
         2. Suggest an appropriate meme token name
         3. Categorize the product
         4. Identify the main use case
+        5. Format your response as:
+          token name: [name]
+          category: [category]
+          use case: [use case]
       `
     });
 
-    return { agent, agentkit, walletProvider };
+    // Create a wrapper function for agent invocation
+    const invokeAgent = async (messages) => {
+      try {
+        const result = await agent.invoke(messages);
+        return result;
+      } catch (error) {
+        console.error('Agent invocation error:', error);
+        throw new Error('Failed to process request with AI agent');
+      }
+    };
+
+    return { agent: { invoke: invokeAgent }, agentkit, walletProvider };
   } catch (error) {
     console.error("Failed to initialize CDP agent:", error);
     console.error("Error details:", {
@@ -200,20 +216,12 @@ app.post('/api/chat', async (req, res) => {
 
     try {
       // Additional validation using agent tools
-      const validationResponse = await cdpAgent.agent.invoke([
-        {
-          role: 'user',
-          content: `Use the wallet tools to validate this address on base-sepolia network: ${walletAddress}. 
-                   Check if this is a valid Ethereum address and exists on the base-sepolia network.
-                   Return ONLY "Valid wallet address" if valid, or "Invalid wallet address: [reason]" if invalid.`
-        }
-      ]);
+      const validationResponse = await cdpAgent.agentkit.validateAddress(walletAddress);
 
-      console.log('Validation response:', validationResponse.content);
+      console.log('Validation response:', validationResponse);
 
-      if (validationResponse.content.toLowerCase().includes('invalid') || 
-          validationResponse.content.toLowerCase().includes('error')) {
-        console.error('Wallet validation failed:', validationResponse.content);
+      if (!validationResponse) {
+        console.error('Wallet validation failed:', validationResponse);
         return res.status(400).json({ error: 'Invalid wallet address' });
       }
 
@@ -235,7 +243,11 @@ app.post('/api/chat', async (req, res) => {
           Company Name: ${tweets.data.name}
           Description: ${tweets.data.description}
           Product Info: ${productInfo}
-          Wallet: ${walletAddress}`
+          Wallet: ${walletAddress}`,
+        metadata: {
+          type: 'analysis',
+          format: 'structured'
+        }
       })
     ]);
 
