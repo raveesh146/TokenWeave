@@ -6,7 +6,11 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts"
+    "dev": "ts-node src/index.ts",
+    "test:twitter": "ts-node src/tests/twitter.service.test.ts",
+    "test:pinata": "ts-node src/tests/pinata.service.test.ts",
+    "test:agent": "ts-node src/tests/agentkit.test.ts",
+    "test:all": "ts-node src/tests/run-tests.ts"
   },
   "dependencies": {
     "@coinbase/agentkit": "^0.1.1",

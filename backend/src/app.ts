@@ -31,4 +31,4 @@ app.post('/generate-meme-coin',
   (req, res) => memeCoinController.generateMemeCoin(req, res)
 );
 
-export default app; 
+export default app;

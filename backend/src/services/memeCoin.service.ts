@@ -42,20 +42,27 @@ export class MemeCoinService {
       };
 
       // 3. Use AgentKit to generate token metadata
-      const agentResponse = await this.agent.invoke({
-        messages: [new HumanMessage(`
-          Generate a meme coin based on this data:
-          ${JSON.stringify(combinedData, null, 2)}
-          
-          Create appropriate token metadata including:
-          - Token name (should be creative and meme-worthy)
-          - Symbol (3-4 characters)
-          - Initial supply (between 1M and 1B)
-          - Description (include product info and social metrics)
-          
-          Return the response as valid JSON.
-        `)],
-      });
+      const agentResponse = await this.agent.invoke(
+        {
+          messages: [new HumanMessage(`
+            Generate a meme coin based on this data:
+            ${JSON.stringify(combinedData, null, 2)}
+            
+            Create appropriate token metadata including:
+            - Token name (should be creative and meme-worthy)
+            - Symbol (3-4 characters)
+            - Initial supply (between 1M and 1B)
+            - Description (include product info and social metrics)
+            
+            Return the response as valid JSON.
+          `)],
+        },
+        {
+          configurable: {
+            thread_id: `memecoin-${Date.now()}`  // Unique thread ID for each request
+          }
+        }
+      );
 
       const tokenMetadata: TokenMetadata = JSON.parse(agentResponse.content);
 
