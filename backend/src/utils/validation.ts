@@ -13,7 +13,7 @@ export function validateInput(data: any): string | null {
     'product_info'
   ];
 
-  // Check for missing fields
+  // missing fields
   for (const field of requiredFields) {
     if (!data[field]) {
       return `Missing required field: ${field}`;
